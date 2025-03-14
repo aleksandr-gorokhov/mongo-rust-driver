@@ -73,6 +73,10 @@ impl ServerType {
         )
     }
 
+    pub(crate) fn is_data_bearing_in_direct_connection(self) -> bool {
+        self.is_data_bearing() || matches!(self, ServerType::RsOther)
+    }
+
     pub(crate) fn is_available(self) -> bool {
         !matches!(self, ServerType::Unknown)
     }

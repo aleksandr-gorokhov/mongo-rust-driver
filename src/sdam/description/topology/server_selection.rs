@@ -118,14 +118,25 @@ impl TopologyDescription {
             }
             .into());
         }
-
         let mut suitable_servers = match criteria {
             SelectionCriteria::ReadPreference(ref read_pref) => self.suitable_servers(read_pref)?,
-            SelectionCriteria::Predicate(ref filter) => self
-                .servers
-                .values()
-                .filter(|s| s.server_type.is_data_bearing() && filter(&ServerInfo::new_borrowed(s)))
-                .collect(),
+            SelectionCriteria::Predicate(ref filter) => {
+                // Check if this is a direct connection by examining the topology type
+                let is_direct_connection = matches!(self.topology_type, TopologyType::Single);
+                self.servers
+                    .values()
+                    .filter(|s| {
+                        // Use different data-bearing check based on connection type
+                        let is_data_bearing = if is_direct_connection {
+                            s.server_type.is_data_bearing_in_direct_connection()
+                        } else {
+                            s.server_type.is_data_bearing()
+                        };
+                        
+                        is_data_bearing && filter(&ServerInfo::new_borrowed(s))
+                    })
+                    .collect()
+            }
         };
 
         self.retain_servers_within_latency_window(&mut suitable_servers);
